@@ -4,7 +4,7 @@ import polars as pl
 from loguru import logger
 import matplotlib.pyplot as plt
 from process_data import split_df_into_time_frames
-from models import SelfImpactEstimator
+from models import SelfImpactContemporaneousModel
 
 SYMBOLS = ["AAPL", "MSFT", "NVDA", "AMGN", "GILD", "TSLA", "PEP", "JPM", "V", "XOM"]
 
@@ -60,7 +60,7 @@ def process(symbol: str, data_dir: str = "./data/XNAS-20250105-S6R97734QU", plot
             logger.info(f"Processing time window {time_window_df['ts_event'][0]}")
 
             # clf = CrossImpactEstimator(time_window_df, symbol)
-            clf = SelfImpactEstimator(time_window_df, symbol)
+            clf = SelfImpactContemporaneousModel(time_window_df, symbol)
 
             coef_dict = clf.fit()
             logger.info(f"Coefficients: {coef_dict}")

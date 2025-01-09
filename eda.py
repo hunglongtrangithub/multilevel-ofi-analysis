@@ -441,21 +441,23 @@ def _(datetime, pl):
 
     _df = pl.DataFrame(
         {
-            "ts_event": pl.datetime_range(
+            "time": pl.datetime_range(
                 start=datetime(2021, 12, 16),
                 end=datetime(2021, 12, 16, 3),
-                interval="1m",
+                interval="1h",
                 eager=True,
             ),
         }
     )
-    print(_df)
-    _time_frames = split_df_into_time_frames(_df)
-    for _sub_df in _time_frames:
-        print(_sub_df.shape)
+
     # print(_df)
-    # _grouped_df = _df.with_columns(pl.col("time").alias("time_group")).group_by_dynamic("time_group", every="1h", closed="left").agg(pl.all())
-    # print(_grouped_df)
+    # _time_frames = split_df_into_time_frames(_df)
+    # for _sub_df in _time_frames:
+    #     print(_sub_df.shape)
+
+    print(_df)
+    _grouped_df = _df.with_columns(pl.col("time").alias("time_group")).group_by_dynamic("time_group", every="2h", closed="left").agg()
+    print(_grouped_df)
     # for i in range(_grouped_df.height):
     #     _row = _grouped_df[i].to_dicts()[0]
     #     _row.pop("time_group")
@@ -465,19 +467,26 @@ def _(datetime, pl):
 
 
 @app.cell
-def _():
-    import numpy as np
-
-    _X = np.zeros((2, 3))
-    _X[0, :] = [1,2,3]
+def _(np):
+    _X = np.zeros((2, 9))
+    for _i in range(3):
+        _X[0, _i * 3 : (_i + 1) * 3] = [1,2,3]
     _X
-    return (np,)
+    return
 
 
 @app.cell
 def _(pl):
-    _sr = pl.Series("r2", [])
-    print(_sr.mean())
+    import numpy as np
+    _a = pl.Series("a", [1,2,3,4])
+    _log_returns = np.log(_a / _a.shift(1))
+    _log_returns
+    return (np,)
+
+
+@app.cell
+def _(df):
+    type(df["ts_event"][0])
     return
 
 
