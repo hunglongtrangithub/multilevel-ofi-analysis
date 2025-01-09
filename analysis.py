@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from datetime import datetime, timedelta
 import polars as pl
@@ -21,35 +22,21 @@ def plot_data(X, y, y_pred, title):
     plt.show()
 
 
-def get_coef_and_r2(model, train_df, test_df=None, plot=False):
-    coef_dict = model.fit()
-    if test_df is None:
-        # Do in-sample evaluation
-        r2, X, y, y_pred = model.evaluate(train_df)
-    else:
-        # Do out-of-sample evaluation
-        r2, X, y, y_pred = model.evaluate(test_df)
-    logger.info(f"Coefficients: {coef_dict}")
-    logger.info(f"R2: {r2}")
-    if plot:
-        plot_data(X, y, y_pred, model.__class__.__name__)
-    return coef_dict, r2
-
-
-def train_models(
-    symbol: str,
-    data_dir: str,
-    out_sample=False,  # If True, use out-of-sample evaluation
-    plot=False,
-):
-    pi_coef_list = []
-    pi_r2_list = []
-    ci_coef_list = []
-    ci_r2_list = []
-    fpi_coef_list = []
-    fpi_r2_list = []
-    fci_coef_list = []
-    fci_r2_list = []
+def train_models(symbol: str, data_dir: str):
+    results = {
+        "pi_coef": [],
+        "is_pi_r2": [],
+        "os_pi_r2": [],
+        "ci_coef": [],
+        "is_ci_r2": [],
+        "os_ci_r2": [],
+        "fpi_coef": [],
+        "is_fpi_r2": [],
+        "os_fpi_r2": [],
+        "fci_coef": [],
+        "is_fci_r2": [],
+        "os_fci_r2": [],
+    }
 
     for df_path in Path(data_dir).glob("*.dbn.parquet"):
         logger.info(f"Reading {df_path}")
@@ -83,151 +70,82 @@ def train_models(
         # Loop through the collected time windows to do the training and evaluation
         for window_idx in range(1, len(time_window_dfs) - 1):
             time_window_df = time_window_dfs[window_idx]
+            logger.info(
+                f"Processing time window {time_window_df['ts_event'][0]}. "
+                "Number of rows in time window {time_window_df.height}"
+            )
             if symbol not in time_window_df["symbol"].unique().to_list():
                 # Skip this time window if the symbol is not found
                 logger.warning(f"Symbol {symbol} not found in time window. Skipping...")
                 continue
-            logger.info(f"Processing time window {time_window_df['ts_event'][0]}")
 
+            logger.info("Initializing the models")
             ci_model = CIModel(time_window_df, symbol)
             pi_model = PIModel(time_window_df, symbol)
 
-            prev_time_window_df = time_window_dfs[window_idx - 1]
             # Combine the previous time window with the current time window to train the predictive models
+            prev_time_window_df = time_window_dfs[window_idx - 1]
             whole_df = pl.concat([prev_time_window_df, time_window_df])
 
             fpi_model = FPIModel(time_window_df, whole_df, symbol)
             fci_model = FCIModel(time_window_df, whole_df, symbol)
 
-            eval_df = None
-            if out_sample:
-                # Find the next time window that includes the same symbol
-                next_window_idx = window_idx + 1
-                while next_window_idx < len(time_window_dfs):
-                    next_time_window_df = time_window_dfs[next_window_idx]
-                    if symbol in next_time_window_df["symbol"].unique().to_list():
-                        eval_df = next_time_window_df
-                        break
-                    next_window_idx += 1
-                if next_window_idx == len(time_window_dfs):
-                    logger.warning(
-                        "No next time window found. Using in-sample evaluation"
-                    )
+            # Train the models
+            logger.info("Training the models")
+            ci_coef_dict = ci_model.fit()
+            pi_coef_dict = pi_model.fit()
+            fpi_coef_dict = fpi_model.fit()
+            fci_coef_dict = fci_model.fit()
 
-            ci_coef_dict, ci_r2 = get_coef_and_r2(
-                ci_model, time_window_df, eval_df, plot=plot
-            )
-            pi_coef_dict, pi_r2 = get_coef_and_r2(
-                pi_model, time_window_df, eval_df, plot=plot
-            )
-            fpi_coef_dict, fpi_r2 = get_coef_and_r2(
-                fpi_model, time_window_df, eval_df, plot=plot
-            )
-            fci_coef_dict, fci_r2 = get_coef_and_r2(
-                fci_model, time_window_df, eval_df, plot=plot
-            )
+            # Save the coefficients
+            results["ci_coef"].append(ci_coef_dict)
+            results["pi_coef"].append(pi_coef_dict)
+            results["fpi_coef"].append(fpi_coef_dict)
+            results["fci_coef"].append(fci_coef_dict)
 
-            pi_coef_list.append(pi_coef_dict)
-            pi_r2_list.append(pi_r2)
-            ci_coef_list.append(ci_coef_dict)
-            ci_r2_list.append(ci_r2)
-            fpi_coef_list.append(fpi_coef_dict)
-            fpi_r2_list.append(fpi_r2)
-            fci_coef_list.append(fci_coef_dict)
-            fci_r2_list.append(fci_r2)
+            # Evaluate the models
+            # 1. In-sample evaluation
+            logger.info("Doing in-sample evaluation")
+            is_ci_r2 = ci_model.evaluate(time_window_df)
+            is_pi_r2 = pi_model.evaluate(time_window_df)
+            is_fpi_r2 = fpi_model.evaluate(time_window_df)
+            is_fci_r2 = fci_model.evaluate(time_window_df)
 
-    pi_coefs_df = pl.from_dicts(pi_coef_list)
-    pi_r2_sr = pl.Series("r2", pi_r2_list)
-    ci_coefs_df = pl.from_dicts(ci_coef_list)
-    ci_r2_sr = pl.Series("r2", ci_r2_list)
-    fpi_coefs_df = pl.from_dicts(fpi_coef_list)
-    fpi_r2_sr = pl.Series("r2", fpi_r2_list)
-    fci_coefs_df = pl.from_dicts(fci_coef_list)
-    fci_r2_sr = pl.Series("r2", fci_r2_list)
+            results["is_ci_r2"].append(is_ci_r2)
+            results["is_pi_r2"].append(is_pi_r2)
+            results["is_fpi_r2"].append(is_fpi_r2)
+            results["is_fci_r2"].append(is_fci_r2)
 
-    logger.info(
-        f"Self-impact contemporaneous model's coefficients and R2 scores shape:\n{pi_coefs_df.shape, pi_r2_sr.shape}"
-    )
-    logger.info(
-        f"Cross-impact contemporaneous model's coefficients and R2 scores shape:\n{ci_coefs_df.shape, ci_r2_sr.shape}"
-    )
-    logger.info(
-        f"Self-impact predictive model's coefficients and R2 scores shape:\n{fpi_coefs_df.shape, fpi_r2_sr.shape}"
-    )
-    logger.info(
-        f"Cross-impact predictive model's coefficients and R2 scores shape:\n{fci_coefs_df.shape, fci_r2_sr.shape}"
-    )
+            # 2. Out-of-sample evaluation
+            next_time_window_df = time_window_dfs[window_idx + 1]
+            logger.info("Doing out-of-sample evaluation")
+            os_ci_r2 = ci_model.evaluate(next_time_window_df)
+            os_pi_r2 = pi_model.evaluate(next_time_window_df)
+            os_fpi_r2 = fpi_model.evaluate(next_time_window_df)
+            os_fci_r2 = fci_model.evaluate(next_time_window_df)
 
-    pi_avg_coefs = pi_coefs_df.mean()
-    pi_avg_r2 = pi_r2_sr.mean()
-    ci_avg_coefs = ci_coefs_df.mean()
-    ci_avg_r2 = ci_r2_sr.mean()
-    fpi_avg_coefs = fpi_coefs_df.mean()
-    fpi_avg_r2 = fpi_r2_sr.mean()
-    fci_avg_coefs = fci_coefs_df.mean()
-    fci_avg_r2 = fci_r2_sr.mean()
+            results["os_ci_r2"].append(os_ci_r2)
+            results["os_pi_r2"].append(os_pi_r2)
+            results["os_fpi_r2"].append(os_fpi_r2)
+            results["os_fci_r2"].append(os_fci_r2)
 
-    logger.info(
-        f"Self-impact contemporaneous model's average coefficients: {pi_avg_coefs}, average R2: {pi_avg_r2}"
-    )
-    logger.info(
-        f"Cross-impact contemporaneous model's average coefficients: {ci_avg_coefs}, average R2: {ci_avg_r2}"
-    )
-    logger.info(
-        f"Self-impact predictive model's average coefficients: {fpi_avg_coefs}, average R2: {fpi_avg_r2}"
-    )
-    logger.info(
-        f"Cross-impact predictive model's average coefficients: {fci_avg_coefs}, average R2: {fci_avg_r2}"
-    )
-
-    return (
-        pi_avg_coefs,
-        pi_avg_r2,
-        ci_avg_coefs,
-        ci_avg_r2,
-        fpi_avg_coefs,
-        fpi_avg_r2,
-        fci_avg_coefs,
-        fci_avg_r2,
-    )
+    return results
 
 
 def main():
-    avg_coef_list = []
     logger.info(f"Processing data for all symbols {SYMBOLS}")
+    results = {}
     for symbol in SYMBOLS:
         logger.info(f"Processing {symbol}")
-        (
-            pi_avg_coefs,
-            pi_avg_r2,
-            ci_avg_coefs,
-            ci_avg_r2,
-            fpi_avg_coefs,
-            fpi_avg_r2,
-            fci_avg_coefs,
-            fci_avg_r2,
-        ) = train_models(symbol, "./data/XNAS-20250105-S6R97734QU")
-        avg_coef_list.append(
-            {
-                "symbol": symbol,
-                "pi_avg_coefs": pi_avg_coefs,
-                "pi_avg_r2": pi_avg_r2,
-                "ci_avg_coefs": ci_avg_coefs,
-                "ci_avg_r2": ci_avg_r2,
-                "fpi_avg_coefs": fpi_avg_coefs,
-                "fpi_avg_r2": fpi_avg_r2,
-                "fci_avg_coefs": fci_avg_coefs,
-                "fci_avg_r2": fci_avg_r2,
-            }
-        )
-
-    logger.info("Processing complete")
-
-    results_df = pl.DataFrame(avg_coef_list)
-    results_df.write_csv("model_results.csv")
-
-    logger.info("Results saved to model_results.csv")
+        symbol_results = train_models(symbol, "./data/XNAS-20250105-S6R97734QU")
+        results[symbol] = symbol_results
+    # Save to a json file
+    logger.info("Saving results to results.json file")
+    with open("results.json", "w") as f:
+        json.dump(results, f, indent=4)
+    logger.info("Analysis complete")
 
 
 if __name__ == "__main__":
+    logger.add("analysis.log", rotation="10 MB")
     main()

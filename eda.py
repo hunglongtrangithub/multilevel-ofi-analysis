@@ -485,14 +485,18 @@ def _(pl):
 
 
 @app.cell
-def _(df):
-    type(df["ts_event"][0])
+def _(pl):
+    _df = pl.DataFrame({"a": [1,2,3], "b": [4,5,6]})
+    print(_df.columns)
     return
 
 
 @app.cell
-def _(pl):
-    pl.Series().__class__.__name__
+def _():
+    print(
+        "abc"
+        "def"
+    )
     return
 
 

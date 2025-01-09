@@ -14,8 +14,8 @@ class CIModel:
     Expects a dataframe with the BPM-10 schema.
     """
 
-    def __init__(self, time_window_df: pl.DataFrame, symbol: str, alpha: float = 0.1):
-        self.train_df = time_window_df.sort("ts_event")
+    def __init__(self, train_df: pl.DataFrame, symbol: str, alpha: float = 0.1):
+        self.train_df = train_df.sort("ts_event")
         # Get unique symbols. Sort to ensure reproducibility
         self.symbols = self.train_df["symbol"].unique().sort().to_list()
         if symbol not in self.symbols:
@@ -74,6 +74,7 @@ class CIModel:
             symbol: coef for symbol, coef in zip(self.symbols, self.model.coef_)
         }
         coef_dict["intercept"] = self.model.intercept_
+        logger.debug(f"Model coefficients: {coef_dict.keys()}")
         return coef_dict
 
     def evaluate(self, df: pl.DataFrame):
@@ -91,13 +92,13 @@ class PIModel:
     Expects a dataframe with the BPM-10 schema.
     """
 
-    def __init__(self, time_window_df: pl.DataFrame, symbol: str):
+    def __init__(self, train_df: pl.DataFrame, symbol: str):
         # Get unique symbols. Sort to ensure reproducibility
-        self.symbols = time_window_df["symbol"].unique().sort().to_list()
+        self.symbols = train_df["symbol"].unique().sort().to_list()
         if symbol not in self.symbols:
             raise ValueError("Symbol not found in the dataframe")
         self.symbol = symbol
-        self.train_df = time_window_df.sort("ts_event")
+        self.train_df = train_df.sort("ts_event")
         self.model = LinearRegression()
         self.scaler = StandardScaler()
 
@@ -144,7 +145,7 @@ class PIModel:
             "self": self.model.coef_[0],
             "intercept": self.model.intercept_,
         }
-
+        logger.debug(f"Model coefficients: {coef_dict.keys()}")
         return coef_dict
 
     def evaluate(self, df: pl.DataFrame):
@@ -255,7 +256,7 @@ class FPIModel:
             f"lag_{lag}": coef for lag, coef in zip(self.lags, self.model.coef_)
         }
         coef_dict["intercept"] = self.model.intercept_
-
+        logger.debug(f"Model coefficients: {coef_dict.keys()}")
         return coef_dict
 
     def evaluate(self, df: pl.DataFrame):
@@ -367,7 +368,7 @@ class FCIModel:
             for symbol, coef in zip(self.symbols, self.model.coef_)
         }
         coef_dict["intercept"] = self.model.intercept_
-
+        logger.debug(f"Model coefficients: {coef_dict.keys()}")
         return coef_dict
 
     def evaluate(self, df: pl.DataFrame):
