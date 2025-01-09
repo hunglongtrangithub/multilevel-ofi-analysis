@@ -23,7 +23,6 @@ def plot_data(X, y, y_pred, title):
 
 def get_coef_and_r2(model, train_df, test_df=None, plot=False):
     coef_dict = model.fit()
-    logger.info(f"Coefficients: {coef_dict}")
     if test_df is None:
         # Do in-sample evaluation
         r2, X, y, y_pred = model.evaluate(train_df)
@@ -51,9 +50,7 @@ def train_models(
     fpi_r2_list = []
     fci_coef_list = []
     fci_r2_list = []
-    time_window_dfs = []
 
-    # Collect all time windows from all parquet files
     for df_path in Path(data_dir).glob("*.dbn.parquet"):
         logger.info(f"Reading {df_path}")
         df = pl.read_parquet(df_path)
@@ -80,65 +77,64 @@ def train_models(
         symbol_counts = filtered_df.group_by("symbol").len()
         logger.info(symbol_counts)
 
-        time_window_dfs.extend(
-            split_df_into_time_frames(filtered_df, timedelta(minutes=30))
-        )
-    logger.info(f"Total number of time windows collected: {len(time_window_dfs)}")
+        time_window_dfs = split_df_into_time_frames(filtered_df, timedelta(minutes=30))
+        logger.info(f"Total number of time windows collected: {len(time_window_dfs)}")
 
-    # Loop through the collected time windows to do the training and evaluation
-    for window_idx in range(1, len(time_window_dfs) - 1):
-        time_window_df = time_window_dfs[window_idx]
-        if symbol not in time_window_df["symbol"].unique().to_list():
-            # Skip this time window if the symbol is not found
-            logger.warning(f"Symbol {symbol} not found in time window. Skipping...")
-            continue
-        logger.info(f"Processing time window {time_window_df['ts_event'][0]}")
+        # Loop through the collected time windows to do the training and evaluation
+        for window_idx in range(1, len(time_window_dfs) - 1):
+            time_window_df = time_window_dfs[window_idx]
+            if symbol not in time_window_df["symbol"].unique().to_list():
+                # Skip this time window if the symbol is not found
+                logger.warning(f"Symbol {symbol} not found in time window. Skipping...")
+                continue
+            logger.info(f"Processing time window {time_window_df['ts_event'][0]}")
 
-        ci_model = CIModel(time_window_df, symbol)
-        pi_model = PIModel(time_window_df, symbol)
+            ci_model = CIModel(time_window_df, symbol)
+            pi_model = PIModel(time_window_df, symbol)
 
-        prev_time_window_df = time_window_dfs[window_idx - 1]
-        # Combine the previous time window with the current time window to train the predictive models
-        whole_df = pl.concat([prev_time_window_df, time_window_df])
+            prev_time_window_df = time_window_dfs[window_idx - 1]
+            # Combine the previous time window with the current time window to train the predictive models
+            whole_df = pl.concat([prev_time_window_df, time_window_df])
 
-        fpi_model = FPIModel(time_window_df, whole_df, symbol)
-        fci_model = FCIModel(time_window_df, whole_df, symbol)
+            fpi_model = FPIModel(time_window_df, whole_df, symbol)
+            fci_model = FCIModel(time_window_df, whole_df, symbol)
 
-        eval_df = None
-        if out_sample:
-            # Find the next time window that includes the same symbol
-            next_window_idx = window_idx + 1
-            while next_window_idx < len(time_window_dfs):
-                next_time_window_df = time_window_dfs[next_window_idx]
-                if symbol in next_time_window_df["symbol"].unique().to_list():
-                    break
-                next_window_idx += 1
-            if next_window_idx == len(time_window_dfs):
-                logger.warning("No next time window found. Using in-sample evaluation")
-            else:
-                eval_df = next_time_window_df
+            eval_df = None
+            if out_sample:
+                # Find the next time window that includes the same symbol
+                next_window_idx = window_idx + 1
+                while next_window_idx < len(time_window_dfs):
+                    next_time_window_df = time_window_dfs[next_window_idx]
+                    if symbol in next_time_window_df["symbol"].unique().to_list():
+                        eval_df = next_time_window_df
+                        break
+                    next_window_idx += 1
+                if next_window_idx == len(time_window_dfs):
+                    logger.warning(
+                        "No next time window found. Using in-sample evaluation"
+                    )
 
-        ci_coef_dict, ci_r2 = get_coef_and_r2(
-            ci_model, time_window_df, eval_df, plot=plot
-        )
-        pi_coef_dict, pi_r2 = get_coef_and_r2(
-            pi_model, time_window_df, eval_df, plot=plot
-        )
-        fpi_coef_dict, fpi_r2 = get_coef_and_r2(
-            fpi_model, time_window_df, eval_df, plot=plot
-        )
-        fci_coef_dict, fci_r2 = get_coef_and_r2(
-            fci_model, time_window_df, eval_df, plot=plot
-        )
+            ci_coef_dict, ci_r2 = get_coef_and_r2(
+                ci_model, time_window_df, eval_df, plot=plot
+            )
+            pi_coef_dict, pi_r2 = get_coef_and_r2(
+                pi_model, time_window_df, eval_df, plot=plot
+            )
+            fpi_coef_dict, fpi_r2 = get_coef_and_r2(
+                fpi_model, time_window_df, eval_df, plot=plot
+            )
+            fci_coef_dict, fci_r2 = get_coef_and_r2(
+                fci_model, time_window_df, eval_df, plot=plot
+            )
 
-        pi_coef_list.append(pi_coef_dict)
-        pi_r2_list.append(pi_r2)
-        ci_coef_list.append(ci_coef_dict)
-        ci_r2_list.append(ci_r2)
-        fpi_coef_list.append(fpi_coef_dict)
-        fpi_r2_list.append(fpi_r2)
-        fci_coef_list.append(fci_coef_dict)
-        fci_r2_list.append(fci_r2)
+            pi_coef_list.append(pi_coef_dict)
+            pi_r2_list.append(pi_r2)
+            ci_coef_list.append(ci_coef_dict)
+            ci_r2_list.append(ci_r2)
+            fpi_coef_list.append(fpi_coef_dict)
+            fpi_r2_list.append(fpi_r2)
+            fci_coef_list.append(fci_coef_dict)
+            fci_r2_list.append(fci_r2)
 
     pi_coefs_df = pl.from_dicts(pi_coef_list)
     pi_r2_sr = pl.Series("r2", pi_r2_list)
@@ -230,7 +226,7 @@ def main():
     results_df = pl.DataFrame(avg_coef_list)
     results_df.write_csv("model_results.csv")
 
-    logger.info(f"Results saved to model_results.csv")
+    logger.info("Results saved to model_results.csv")
 
 
 if __name__ == "__main__":
