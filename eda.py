@@ -491,6 +491,12 @@ def _(df):
 
 
 @app.cell
+def _(pl):
+    pl.Series().__class__.__name__
+    return
+
+
+@app.cell
 def _():
     return
 

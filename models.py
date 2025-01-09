@@ -8,7 +8,7 @@ from loguru import logger
 from process_data import OrderBookProcessor, split_df_into_time_frames
 
 
-class CrossImpactContemporaneousModel:
+class CIModel:
     """
     Estimate the log return for a given stock symbol based on the cross-impact terms during a time window (30 minutes) .
     Expects a dataframe with the BPM-10 schema.
@@ -77,15 +77,15 @@ class CrossImpactContemporaneousModel:
         return coef_dict
 
     def evaluate(self, df: pl.DataFrame):
-        if self.symbols != df["symbol"].unique().sort().to_list():
-            raise ValueError("Symbols do not match")
+        if self.symbol not in df["symbol"].to_list():
+            raise ValueError("Symbol not found in the dataframe")
         X, y = self.prepare_data(df)
         y_pred = self.model.predict(X)
         r2 = r2_score(y, y_pred)
-        return r2
+        return r2, X, y, y_pred
 
 
-class SelfImpactContemporaneousModel:
+class PIModel:
     """
     Estimate the log return for a given stock symbol based on self-impact terms during a time window (30 minutes).
     Expects a dataframe with the BPM-10 schema.
@@ -163,7 +163,7 @@ class SelfImpactContemporaneousModel:
 #     - We have non-overlapping time windows of 30 minutes to train separate models.
 
 
-class SelfImpactPredictiveModel:
+class FPIModel:
     """
     Predict the 1-minute future log returns of a given stock symbol using the self-impact terms during a time window (30 minutes).
     Expects a dataframe with the BPM-10 schema.
@@ -267,7 +267,7 @@ class SelfImpactPredictiveModel:
         return r2, X, y, y_pred
 
 
-class CrossImpactPredictiveModel:
+class FCIModel:
     """
     Predict the 1-minute future log returns of a given stock symbol using the cross-impact terms during a time window (30 minutes).
     Expects a dataframe with the BPM-10 schema.
