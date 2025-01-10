@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 SYMBOLS = ["AAPL", "MSFT", "NVDA", "AMGN", "GILD", "TSLA", "PEP", "JPM", "V", "XOM"]
 
 
-def convert_to_parquet(file_path="data"):
+def convert_to_parquet(file_path: str):
     data_path = Path(file_path)
 
     for file_path in data_path.rglob("*.dbn.zst"):

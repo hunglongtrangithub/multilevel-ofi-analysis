@@ -5,14 +5,10 @@ import polars as pl
 from loguru import logger
 from process_data import split_df_into_time_frames, OrderBookProcessor
 from models import PIModel, CIModel, FPIModel, FCIModel
-
-SYMBOLS = ["AAPL", "MSFT", "NVDA", "AMGN", "GILD", "TSLA", "PEP", "JPM", "V", "XOM"]
-LAGS = [1, 2, 3, 5, 10, 20, 30]
+from config import SYMBOLS
 
 
-def collect_coefficients_and_r2_scores(
-    data_dir: str, symbols: list, output_file: str = "results"
-):
+def collect_coefficients_and_r2_scores(input_dir: str, symbols: list, output_dir: str):
     """
     Analyze market data for multiple symbols across multiple files, training and evaluating
     various models for each time window.
@@ -47,7 +43,7 @@ def collect_coefficients_and_r2_scores(
     }
 
     # Process each data file
-    for df_path in Path(data_dir).glob("*.dbn.parquet"):
+    for df_path in Path(input_dir).glob("*.dbn.parquet"):
         logger.info(f"Reading {df_path}")
         df = pl.read_parquet(df_path)
         date = df["ts_event"].cast(pl.Datetime).dt.date()[0]
@@ -144,7 +140,7 @@ def collect_coefficients_and_r2_scores(
                     continue
 
         # Save intermediate results after each file
-        output_file = f"{output_file}.json"
+        output_file = Path(output_dir) / "models_results.json"
         logger.info(f"Saving intermediate results to {output_file}")
         with open(output_file, "w") as f:
             json.dump(results, f, indent=4)
@@ -153,7 +149,7 @@ def collect_coefficients_and_r2_scores(
     return results
 
 
-def collect_ofis(data_dir: str, symbols: list, output_file: str = "ofis"):
+def collect_ofis(input_dir: str, symbols: list, output_dir: str):
     """
     Collect Order Flow Imbalance (OFI) data for multiple symbols across multiple files.
     Processes data in a file-first manner to minimize I/O operations.
@@ -167,7 +163,7 @@ def collect_ofis(data_dir: str, symbols: list, output_file: str = "ofis"):
         pl.DataFrame: DataFrame containing OFI results
     """
     results = []
-    for df_path in Path(data_dir).glob("*.dbn.parquet"):
+    for df_path in Path(input_dir).glob("*.dbn.parquet"):
         logger.info(f"Reading {df_path}")
         df = pl.read_parquet(df_path)
         logger.info(f"Number of rows {df.height}")
@@ -230,13 +226,16 @@ def collect_ofis(data_dir: str, symbols: list, output_file: str = "ofis"):
 
     results_df = pl.DataFrame(results)
 
-    ofis_file = f"{output_file}.parquet"
+    ofis_file = Path(output_dir) / "ofis_results.parquet"
     results_df.write_parquet(ofis_file)
     logger.info(f"Saved OFIs to {ofis_file}")
     return results_df
 
 
 if __name__ == "__main__":
+    data_dir = Path(__file__).parents[1] / "data"
     # logger.add("analysis.log", rotation="10 MB")
-    # collect_coefficients_and_r2_scores()
-    collect_ofis()
+    collect_coefficients_and_r2_scores(
+        data_dir / "XNAS-20250105-S6R97734QU", SYMBOLS, data_dir
+    )
+    # collect_ofis(data_dir / "XNAS-20250105-S6R97734QU", SYMBOLS, data_dir)

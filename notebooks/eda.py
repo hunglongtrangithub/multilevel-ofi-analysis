@@ -31,7 +31,8 @@ def _():
         data.to_json("./data/test/test.json")
         data.to_parquet("./data/test/test.parquet")
 
-    get_data()
+    # get_data()
+    print(Path.cwd())
     return Path, db, get_data, load_dotenv
 
 
@@ -536,22 +537,22 @@ def _():
         return results
 
     results = generate_example_results(9 * 5)
-    # Save the results to a JSON file
-    with open("example_results.json", "w") as f:
-        json.dump(results, f, indent=4)
-
-    print("Randomized results saved to example_results.json")
-
+    def save_to_file():
+        # Save the results to a JSON file
+        with open("example_results.json", "w") as f:
+            json.dump(results, f, indent=4)
+        
+        print("Randomized results saved to example_results.json")
     return (
         LAGS,
         SYMBOLS,
-        f,
         generate_coefficients,
         generate_example_results,
         generate_r2,
         json,
         random,
         results,
+        save_to_file,
     )
 
 

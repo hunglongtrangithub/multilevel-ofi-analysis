@@ -6,9 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from scipy import stats
-
-SYMBOLS = ["AAPL", "MSFT", "NVDA", "AMGN", "GILD", "TSLA", "PEP", "JPM", "V", "XOM"]
-LAGS = [1, 2, 3, 5, 10, 20, 30]
+from config import SYMBOLS, LAGS
 
 
 # Generate Example Data

@@ -3,6 +3,7 @@ import pathlib
 import time
 from dotenv import load_dotenv
 import databento as db
+from config import SYMBOLS
 
 load_dotenv()
 
@@ -14,7 +15,7 @@ new_job = client.batch.submit_job(
     dataset="XNAS.ITCH",
     start="2024-12-01",
     end="2024-12-08",
-    symbols=["AAPL", "MSFT", "NVDA", "AMGN", "GILD", "TSLA", "PEP", "JPM", "V", "XOM"],
+    symbols=SYMBOLS,
     schema="mbp-10",
     split_duration="day",
 )
@@ -36,7 +37,7 @@ print("Downloading files...")
 # Once complete, we will download the files
 downloaded_files = client.batch.download(
     job_id=new_job_id,
-    output_dir=pathlib.Path.cwd(),
+    output_dir=pathlib.Path(__file__).parents[1] / "data",
 )
 
 # Finally, we can load the data into a DBNStore for analysis
