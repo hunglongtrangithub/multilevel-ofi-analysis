@@ -207,15 +207,3 @@ def split_df_into_time_frames(
         sub_df = sub_df.sort("ts_event")
         dfs.append(sub_df)
     return dfs
-
-
-def plot_data(X, y, y_pred, title):
-    plt.figure(figsize=(10, 6))
-    plt.scatter(X, y, label="Data points")
-    plt.plot(X, y_pred, color="red", label="Predicted values")
-    plt.xlabel("Integrated OFI")
-    plt.ylabel("Log Return")
-    plt.grid(True)
-    plt.legend()
-    plt.title(title)
-    plt.show()

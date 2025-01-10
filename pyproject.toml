@@ -8,9 +8,13 @@ dependencies = [
   "databento>=0.47.0",
   "loguru>=0.7.3",
   "matplotlib>=3.10.0",
+  "networkx>=3.4.2",
   "polars>=1.19.0",
   "python-dotenv",
   "scikit-learn",
+  "scipy>=1.15.0",
+  "seaborn>=0.13.2",
+  "stats>=0.1.2a0",
 ]
 
 [tool.uv]

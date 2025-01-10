@@ -485,18 +485,92 @@ def _(pl):
 
 
 @app.cell
-def _(pl):
-    _df = pl.DataFrame({"a": [1,2,3], "b": [4,5,6]})
-    print(_df.columns)
-    return
+def _():
+    import json
+    import random
+
+    # Set a seed for reproducibility
+    random.seed(42)
+
+    # Define the symbols and lag structure
+    SYMBOLS = ["AAPL", "MSFT", "NVDA", "AMGN", "GILD", "TSLA", "PEP", "JPM", "V", "XOM"]
+    LAGS = [1, 2, 3, 5, 10, 20, 30]
+
+    def generate_coefficients(symbols=SYMBOLS, lags=None, cross_impact=False):
+        coefficients = {}
+        if cross_impact and lags:
+            for symbol in symbols:
+                for lag in lags:
+                    coefficients[f"lag_{lag}_{symbol}"] = round(random.uniform(-0.1, 0.1), 4)
+        elif not cross_impact and lags:
+            for lag in lags:
+                coefficients[f"lag_{lag}"] = round(random.uniform(-0.1, 0.1), 4)
+        elif cross_impact and not lags:
+            for symbol in symbols:
+                coefficients[f"{symbol}"] = round(random.uniform(-0.1, 0.1), 4)
+        else:
+            coefficients["self"] = round(random.uniform(-0.1, 0.1), 4)
+        coefficients["intercept"] = round(random.uniform(-0.05, 0.05), 4)
+        return coefficients
+
+    def generate_r2():
+        return round(random.uniform(0.6, 0.8), 4)
+
+    def generate_example_results(num_samples):
+        results = {}
+        for symbol in SYMBOLS:
+            results[symbol] = {
+            "pi_coef": [generate_coefficients()] * num_samples,
+            "is_pi_r2": [generate_r2()] * num_samples,
+            "os_pi_r2": [generate_r2()] * num_samples,
+            "ci_coef": [generate_coefficients(cross_impact=True)] * num_samples,
+            "is_ci_r2": [generate_r2()] * num_samples,
+            "os_ci_r2": [generate_r2()] * num_samples,
+            "fpi_coef": [generate_coefficients(lags=LAGS)] * num_samples,
+            "is_fpi_r2": [generate_r2()] * num_samples,
+            "os_fpi_r2": [generate_r2()] * num_samples,
+            "fci_coef": [generate_coefficients(lags=LAGS, cross_impact=True)] * num_samples,
+            "is_fci_r2": [generate_r2()] * num_samples,
+            "os_fci_r2": [generate_r2()] * num_samples,
+        }
+        return results
+
+    results = generate_example_results(9 * 5)
+    # Save the results to a JSON file
+    with open("example_results.json", "w") as f:
+        json.dump(results, f, indent=4)
+
+    print("Randomized results saved to example_results.json")
+
+    return (
+        LAGS,
+        SYMBOLS,
+        f,
+        generate_coefficients,
+        generate_example_results,
+        generate_r2,
+        json,
+        random,
+        results,
+    )
 
 
 @app.cell
 def _():
-    print(
-        "abc"
-        "def"
-    )
+    print(1e-64 != 0)
+    print(int(True))
+    print("lag_1_APPL".rsplit("_", 1))
+    return
+
+
+@app.cell
+def _(pl):
+    _df = pl.DataFrame({
+        "Stock": ["NVDA", "NVDA", "APPL", "TSLA"],
+        "Lag": [10, 20, 30, 40],
+        "Coefficient": [1,2,3,4],
+    }).pivot(index="Stock", on="Lag", values="Coefficient")
+    _df
     return
 
 
