@@ -24,7 +24,7 @@ class CIModel:
         self.model = Lasso(alpha=alpha)
         self.scaler = StandardScaler()
 
-    def prepare_data(self, time_window_df: pl.DataFrame) -> tuple[np.ndarray]:
+    def prepare_data(self, time_window_df: pl.DataFrame) -> tuple:
         """
         Prepare the data for training the model or making predictions.
         """
@@ -102,7 +102,7 @@ class PIModel:
         self.model = LinearRegression()
         self.scaler = StandardScaler()
 
-    def prepare_data(self, time_window_df: pl.DataFrame) -> tuple[np.ndarray]:
+    def prepare_data(self, time_window_df: pl.DataFrame) -> tuple:
         """
         Prepare the data for training the model or making predictions.
         """
@@ -188,9 +188,7 @@ class FPIModel:
         self.model = LinearRegression()
         self.scaler = StandardScaler()
 
-    def _prepare_time_frame_dfs(
-        self, time_stamp: datetime
-    ) -> tuple[list[pl.DataFrame]]:
+    def _prepare_time_frame_dfs(self, time_stamp: datetime) -> tuple:
         """
         Prepare the lagged dataframes and future dataframe with the given time stamp.
         """
@@ -206,7 +204,7 @@ class FPIModel:
         )
         return lagged_dfs, future_df
 
-    def prepare_data(self, time_window_df: pl.DataFrame) -> tuple[np.ndarray]:
+    def prepare_data(self, time_window_df: pl.DataFrame) -> tuple:
         """
         Prepare the data for training the model or making predictions.
         """
@@ -293,9 +291,7 @@ class FCIModel:
         self.model = Lasso(alpha=alpha)
         self.scaler = StandardScaler()
 
-    def _prepare_time_frame_dfs(
-        self, time_stamp: datetime
-    ) -> tuple[list[pl.DataFrame]]:
+    def _prepare_time_frame_dfs(self, time_stamp: datetime) -> tuple:
         """
         Prepare the lagged dataframes and future dataframe with the given time stamp.
         """
@@ -311,7 +307,7 @@ class FCIModel:
         )
         return lagged_dfs, future_df
 
-    def prepare_data(self, time_window_df: pl.DataFrame) -> tuple[np.ndarray]:
+    def prepare_data(self, time_window_df: pl.DataFrame) -> tuple:
         """
         Prepare the data for training the model or making predictions.
         """
