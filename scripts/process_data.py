@@ -6,9 +6,6 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from loguru import logger
-import matplotlib.pyplot as plt
-
-SYMBOLS = ["AAPL", "MSFT", "NVDA", "AMGN", "GILD", "TSLA", "PEP", "JPM", "V", "XOM"]
 
 
 def convert_to_parquet(file_path: str):

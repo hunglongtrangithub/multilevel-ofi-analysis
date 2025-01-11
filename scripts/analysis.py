@@ -105,32 +105,32 @@ def collect_coefficients_and_r2_scores(input_dir: str, symbols: list, output_dir
                     # In-sample evaluation
                     logger.debug("Performing in-sample evaluation")
                     results[symbol]["is_ci_r2"].append(
-                        ci_model.evaluate(time_window_df)
+                        ci_model.evaluate(time_window_df)[0]
                     )
                     results[symbol]["is_pi_r2"].append(
-                        pi_model.evaluate(time_window_df)
+                        pi_model.evaluate(time_window_df)[0]
                     )
                     results[symbol]["is_fpi_r2"].append(
-                        fpi_model.evaluate(time_window_df)
+                        fpi_model.evaluate(time_window_df)[0]
                     )
                     results[symbol]["is_fci_r2"].append(
-                        fci_model.evaluate(time_window_df)
+                        fci_model.evaluate(time_window_df)[0]
                     )
 
                     # Out-of-sample evaluation
                     logger.debug("Performing out-of-sample evaluation")
                     next_time_window_df = time_window_dfs[window_idx + 1]
                     results[symbol]["os_ci_r2"].append(
-                        ci_model.evaluate(next_time_window_df)
+                        ci_model.evaluate(next_time_window_df)[0]
                     )
                     results[symbol]["os_pi_r2"].append(
-                        pi_model.evaluate(next_time_window_df)
+                        pi_model.evaluate(next_time_window_df)[0]
                     )
                     results[symbol]["os_fpi_r2"].append(
-                        fpi_model.evaluate(next_time_window_df)
+                        fpi_model.evaluate(next_time_window_df)[0]
                     )
                     results[symbol]["os_fci_r2"].append(
-                        fci_model.evaluate(next_time_window_df)
+                        fci_model.evaluate(next_time_window_df)[0]
                     )
 
                 except Exception as e:
