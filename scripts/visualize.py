@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 import polars as pl
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -315,10 +317,48 @@ def plot_lag_heatmap(data):
     plt.show()
 
 
-def calculate_summary_statistics(df: pl.DataFrame) -> pl.DataFrame:
+def format_summary_table(df: pl.DataFrame) -> None:
     """
-    Calculate summary statistics for OFI levels and returns.
-    All values are in basis points (bp).
+    Print the summary statistics in a format similar to the paper's table.
+    """
+    # Create header
+    print("\nTable 1. Summary statistics of OFIs and returns.")
+    print("-" * 120)
+    print(
+        f"{'Variable':<12}\t{'Mean (bp)':>10}\t{'Std (bp)':>10}\t{'Skewness':>10}\t{'Kurtosis':>10} "
+        f"{'10% (bp)':>10}\t{'25% (bp)':>10}\t{'50% (bp)':>10}\t{'75% (bp)':>10}\t{'90% (bp)':>10}"
+    )
+    print("-" * 120)
+
+    # Print each row
+    for row in df.iter_rows(named=True):
+        var_name = row["variable"]
+        # Format variable name to match paper style (e.g., "ofi_level_01" -> "ofi¹")
+        if var_name.startswith("ofi_level_"):
+            level = int(var_name.split("_")[-1])
+            var_name = f"ofi{level},(1m)"
+        elif var_name == "integrated_ofi":
+            var_name = "ofiᴵ,(1m)"
+
+        print(
+            f"{var_name:<12}\t"
+            f"{row['Mean (bp)']:>10.2f}\t{row['Std (bp)']:>10.2f}\t{row['Skewness']:>10.2f}\t"
+            f"{row['Kurtosis']:>10.2f}\t{row['10% (bp)']:>10.2f}\t{row['25% (bp)']:>10.2f}\t"
+            f"{row['50% (bp)']:>10.2f}\t{row['75% (bp)']:>10.2f}\t{row['90% (bp)']:>10.2f}"
+        )
+
+    print("-" * 120)
+    print(
+        "Note: These statistics are computed at the minute level across each stock and the full sample period. 1bp = 0.0001 = 0.01%."
+    )
+
+
+# Usage example:
+def generate_ofi_summary(
+    df: pl.DataFrame, save_file_dir: Path | None = None
+) -> pl.DataFrame:
+    """
+    Generate summary statistics for OFI data.
     """
 
     # Function to calculate kurtosis (using Fisher definition to match paper)
@@ -371,67 +411,19 @@ def calculate_summary_statistics(df: pl.DataFrame) -> pl.DataFrame:
     for col in numeric_cols:
         summary_df = summary_df.with_columns(pl.col(col).round(2))
 
-    return summary_df
-
-
-def format_summary_table(df: pl.DataFrame) -> None:
-    """
-    Print the summary statistics in a format similar to the paper's table.
-    """
-    # Create header
-    print("\nTable 1. Summary statistics of OFIs and returns.")
-    print("-" * 120)
-    print(
-        f"{'Variable':<12} {'Mean (bp)':>10} {'Std (bp)':>10} {'Skewness':>10} {'Kurtosis':>10} "
-        f"{'10% (bp)':>10} {'25% (bp)':>10} {'50% (bp)':>10} {'75% (bp)':>10} {'90% (bp)':>10}"
-    )
-    print("-" * 120)
-
-    # Print each row
-    for row in df.iter_rows(named=True):
-        var_name = row["variable"]
-        # Format variable name to match paper style (e.g., "ofi_level_01" -> "ofi¹")
-        if var_name.startswith("ofi_level_"):
-            level = int(var_name.split("_")[-1])
-            var_name = f"ofi{level},(1m)"
-        elif var_name == "integrated_ofi":
-            var_name = "ofiᴵ,(1m)"
-
-        print(
-            f"{var_name:<12} "
-            f"{row['Mean (bp)']:>10.2f} {row['Std (bp)']:>10.2f} {row['Skewness']:>10.2f} "
-            f"{row['Kurtosis']:>10.2f} {row['10% (bp)']:>10.2f} {row['25% (bp)']:>10.2f} "
-            f"{row['50% (bp)']:>10.2f} {row['75% (bp)']:>10.2f} {row['90% (bp)']:>10.2f}"
-        )
-
-    print("-" * 120)
-    print(
-        "Note: These statistics are computed at the minute level across each stock and the full sample period. 1bp = 0.0001 = 0.01%."
-    )
-
-
-# Usage example:
-def generate_ofi_summary(results_df: pl.DataFrame) -> None:
-    """
-    Generate and display summary statistics for OFI data.
-    """
-    # Calculate summary statistics
-    summary_stats = calculate_summary_statistics(results_df)
-
-    # Display formatted table
-    format_summary_table(summary_stats)
-
     # Optionally save to file
-    summary_stats.write_csv("ofi_summary_statistics.csv")
+    if save_file_dir:
+        summary_df.write_csv(save_file_dir / "ofi_summary.csv")
+
+    return summary_df
 
 
 # Example usage
 def main():
-    import json
-    from pathlib import Path
 
     # Load data (replace with actual JSON file path)
-    file_path = Path(__file__).parents[1] / "data" / "models_results.json"
+    data_path = Path(__file__).parents[1] / "data"
+    file_path = data_path / "models_results.json"
     with open(file_path, "r") as f:
         data = json.load(f)
 
@@ -453,19 +445,24 @@ def main():
     )
     print(os_predictive_r2_summary)
 
-    # Generate and plot CI network
-    threshold = 95  # Percentile
-    top_k = 50  # Top edges by weight
-    G_ci = generate_network(data, threshold, top_k, model="CI")
-    plot_network(G_ci, title="Averaged Cross-Impact Network (CI)")
+    # # Generate and plot CI network
+    # threshold = 95  # Percentile
+    # top_k = 50  # Top edges by weight
+    # G_ci = generate_network(data, threshold, top_k, model="CI")
+    # plot_network(G_ci, title="Averaged Cross-Impact Network (CI)")
 
-    # Generate and plot FCI network
-    G_fci = generate_network(data, threshold, top_k, model="FCI")
-    plot_network(G_fci, title="Averaged Forward-Looking Cross-Impact Network (FCI)")
+    # # Generate and plot FCI network
+    # G_fci = generate_network(data, threshold, top_k, model="FCI")
+    # plot_network(G_fci, title="Averaged Forward-Looking Cross-Impact Network (FCI)")
 
-    plot_r2_scores(data)
+    # plot_r2_scores(data)
 
-    plot_lag_heatmap(data)
+    # plot_lag_heatmap(data)
+
+    ofi_data = pl.read_parquet(data_path / "ofis_results.parquet")
+    ofi_summary = generate_ofi_summary(ofi_data, data_path)
+
+    format_summary_table(ofi_summary)
 
 
 if __name__ == "__main__":
