@@ -5,7 +5,7 @@ from sklearn.linear_model import Lasso, LinearRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score
 from loguru import logger
-from process_data import OrderBookProcessor, split_df_into_time_frames
+from .process_data import OrderBookProcessor, split_df_into_time_frames
 
 
 class CIModel:

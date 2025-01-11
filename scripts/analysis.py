@@ -8,7 +8,7 @@ from functools import partial
 import shutil
 from process_data import split_df_into_time_frames, OrderBookProcessor
 from models import PIModel, CIModel, FPIModel, FCIModel
-from config import SYMBOLS
+from .config import SYMBOLS
 
 
 def process_symbol(

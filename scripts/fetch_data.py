@@ -3,7 +3,7 @@ import pathlib
 import time
 from dotenv import load_dotenv
 import databento as db
-from config import SYMBOLS
+from .config import SYMBOLS
 
 load_dotenv()
 

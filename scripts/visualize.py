@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from tabulate import tabulate
 import polars as pl
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -7,10 +8,10 @@ import random
 import numpy as np
 import seaborn as sns
 from scipy import stats
-from config import SYMBOLS, LAGS
+from .config import SYMBOLS, LAGS
 
 
-# Generate Example Data
+# Generate Example Data (for testing purposes)
 def generate_coefficients(symbols=SYMBOLS, lags=None, cross_impact=False):
     coefficients = {}
     if cross_impact and lags:
@@ -318,38 +319,39 @@ def plot_lag_heatmap(data):
 
 
 def format_summary_table(df: pl.DataFrame) -> None:
-    """
-    Print the summary statistics in a format similar to the paper's table.
-    """
-    # Create header
-    print("\nTable 1. Summary statistics of OFIs and returns.")
-    print("-" * 120)
-    print(
-        f"{'Variable':<12}\t{'Mean (bp)':>10}\t{'Std (bp)':>10}\t{'Skewness':>10}\t{'Kurtosis':>10} "
-        f"{'10% (bp)':>10}\t{'25% (bp)':>10}\t{'50% (bp)':>10}\t{'75% (bp)':>10}\t{'90% (bp)':>10}"
-    )
-    print("-" * 120)
-
-    # Print each row
-    for row in df.iter_rows(named=True):
-        var_name = row["variable"]
-        # Format variable name to match paper style (e.g., "ofi_level_01" -> "ofi¹")
+    def format_variable_name(var_name):
         if var_name.startswith("ofi_level_"):
             level = int(var_name.split("_")[-1])
-            var_name = f"ofi{level},(1m)"
+            return f"ofi{level},(1m)"
         elif var_name == "integrated_ofi":
-            var_name = "ofiᴵ,(1m)"
+            return "ofiᴵ,(1m)"
+        return var_name
 
-        print(
-            f"{var_name:<12}\t"
-            f"{row['Mean (bp)']:>10.2f}\t{row['Std (bp)']:>10.2f}\t{row['Skewness']:>10.2f}\t"
-            f"{row['Kurtosis']:>10.2f}\t{row['10% (bp)']:>10.2f}\t{row['25% (bp)']:>10.2f}\t"
-            f"{row['50% (bp)']:>10.2f}\t{row['75% (bp)']:>10.2f}\t{row['90% (bp)']:>10.2f}"
-        )
+    df = df.with_columns(
+        pl.col("variable")
+        .map_elements(format_variable_name, return_dtype=pl.String)
+        .alias("variable")
+    )
 
-    print("-" * 120)
+    data = df.to_dicts()
+
+    headers = {
+        "variable": "Variable",
+        "Mean (bp)": "Mean (bp)",
+        "Std (bp)": "Std (bp)",
+        "Skewness": "Skewness",
+        "Kurtosis": "Kurtosis",
+        "10% (bp)": "10% (bp)",
+        "25% (bp)": "25% (bp)",
+        "50% (bp)": "50% (bp)",
+        "75% (bp)": "75% (bp)",
+        "90% (bp)": "90% (bp)",
+    }
+
+    print("\nTable 1. Summary statistics of OFIs and returns.")
+    print(tabulate(data, headers=headers, tablefmt="rst", floatfmt=".2f"))
     print(
-        "Note: These statistics are computed at the minute level across each stock and the full sample period. 1bp = 0.0001 = 0.01%."
+        "\nNote: These statistics are computed at the minute level across each stock and the full sample period. 1bp = 0.0001 = 0.01%."
     )
 
 
