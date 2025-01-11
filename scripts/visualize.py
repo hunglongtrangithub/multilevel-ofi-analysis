@@ -2,7 +2,6 @@ import polars as pl
 import networkx as nx
 import matplotlib.pyplot as plt
 import random
-import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from scipy import stats
@@ -287,7 +286,7 @@ def plot_lag_heatmap(data):
     lag_data = []
 
     for stock, stock_data in data.items():
-        ci_coefs = stock_data["ci_coef"]
+        ci_coefs = stock_data["fci_coef"]
         for coefs in ci_coefs:
             for key, value in coefs.items():
                 if "lag_" in key:
@@ -303,10 +302,12 @@ def plot_lag_heatmap(data):
         df.group_by(["Stock", "Lag"])
         .mean()
         .pivot(index="Stock", on="Lag", values="Coefficient")
-    )
+    ).to_pandas()
+    # use Stock column as index
+    heatmap_data.set_index("Stock", inplace=True)
 
     plt.figure(figsize=(10, 8))
-    sns.heatmap(heatmap_data.to_pandas(), annot=True, fmt=".2f", cmap="YlGnBu")
+    sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="YlGnBu")
     plt.title("Average Magnitude of Cross-Impact Coefficients by Lag")
     plt.ylabel("Stock")
     plt.xlabel("Lag")
@@ -427,9 +428,10 @@ def generate_ofi_summary(results_df: pl.DataFrame) -> None:
 # Example usage
 def main():
     import json
+    from pathlib import Path
 
     # Load data (replace with actual JSON file path)
-    file_path = "example_results.json"
+    file_path = Path(__file__).parents[1] / "data" / "models_results.json"
     with open(file_path, "r") as f:
         data = json.load(f)
 
@@ -451,20 +453,22 @@ def main():
     )
     print(os_predictive_r2_summary)
 
-    # # Generate and plot CI network
-    # threshold = 95  # Percentile
-    # top_k = 50  # Top edges by weight
-    # G_ci = generate_network(data, threshold, top_k, model="CI")
-    # plot_network(G_ci, title="Averaged Cross-Impact Network (CI)")
+    # Generate and plot CI network
+    threshold = 95  # Percentile
+    top_k = 50  # Top edges by weight
+    G_ci = generate_network(data, threshold, top_k, model="CI")
+    plot_network(G_ci, title="Averaged Cross-Impact Network (CI)")
 
-    # # Generate and plot FCI network
-    # G_fci = generate_network(data, threshold, top_k, model="FCI")
-    # plot_network(G_fci, title="Averaged Forward-Looking Cross-Impact Network (FCI)")
+    # Generate and plot FCI network
+    G_fci = generate_network(data, threshold, top_k, model="FCI")
+    plot_network(G_fci, title="Averaged Forward-Looking Cross-Impact Network (FCI)")
 
-    # plot_r2_scores(data)
+    plot_r2_scores(data)
 
     plot_lag_heatmap(data)
 
 
 if __name__ == "__main__":
     main()
+    # glue = sns.load_dataset("glue").pivot(index="Model", columns="Task", values="Score")
+    # print(glue)

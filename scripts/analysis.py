@@ -137,6 +137,8 @@ def collect_coefficients_and_r2_scores(
     output_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_dir = output_dir / "checkpoints"
     checkpoint_dir.mkdir(exist_ok=True)
+    symbols_dir = output_dir / "symbols"
+    symbols_dir.mkdir(exist_ok=True)
 
     results = {}
 
@@ -177,7 +179,8 @@ def collect_coefficients_and_r2_scores(
             date_str=date_str,
             time_window_dfs=time_window_dfs,
             checkpoint_dir=checkpoint_dir,
-            output_dir=output_dir,
+            symbols_dir=symbols_dir,
+            output_dir=symbols_dir,
         )
 
         # Process symbols in parallel

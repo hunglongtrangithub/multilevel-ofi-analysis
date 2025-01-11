@@ -1,0 +1,6 @@
+outs:
+- md5: 7c8099ad5795ed713827ed032e147e54.dir
+  size: 1476558
+  nfiles: 50
+  hash: md5
+  path: symbols
