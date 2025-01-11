@@ -541,7 +541,7 @@ def _():
         # Save the results to a JSON file
         with open("example_results.json", "w") as f:
             json.dump(results, f, indent=4)
-        
+
         print("Randomized results saved to example_results.json")
     return (
         LAGS,
