@@ -23,19 +23,24 @@ def _(Path, __file__):
     import networkx as nx
     import matplotlib.pyplot as plt
     import seaborn as sns
+    import math
+    import copy
 
     data_path = Path(__file__).parents[1] / "data"
     file_path = data_path / "models_results.json"
     with open(file_path, "r") as f:
-        data = json.load(f)
+        model_data = json.load(f)
+
     return (
         LAGS,
         SYMBOLS,
-        data,
+        copy,
         data_path,
         f,
         file_path,
         json,
+        math,
+        model_data,
         np,
         nx,
         pl,
@@ -95,7 +100,7 @@ def _(LAGS, SYMBOLS, random):
 
 
 @app.cell
-def _(data, pl):
+def _(copy, model_data, pl):
     def summarize_is_contemp_r2(data):
         rows = []
         for stock, stock_data in data.items():
@@ -108,7 +113,7 @@ def _(data, pl):
             [pl.col("R^2").mean().alias("Mean_R2"), pl.col("R^2").std().alias("Std_R2")]
         )
         return summary
-    is_contemp_r2_summary = summarize_is_contemp_r2(data)
+    is_contemp_r2_summary = summarize_is_contemp_r2(copy.deepcopy(model_data))
     print(
         "In-sample R2 score for contemporaneous models (self-impact and cross-impact):"
     )
@@ -118,7 +123,7 @@ def _(data, pl):
 
 
 @app.cell
-def _(data, pl):
+def _(copy, model_data, pl):
     def summarize_os_contemp_r2(data):
         rows = []
         for stock, stock_data in data.items():
@@ -131,7 +136,7 @@ def _(data, pl):
             [pl.col("R^2").mean().alias("Mean_R2"), pl.col("R^2").std().alias("Std_R2")]
         )
         return summary
-    os_contemp_r2_summary = summarize_os_contemp_r2(data)
+    os_contemp_r2_summary = summarize_os_contemp_r2(copy.deepcopy(model_data))
     print(
         "Out-of-sample R2 score for contemporaneous models (self-impact and cross-impact):"
     )
@@ -141,7 +146,7 @@ def _(data, pl):
 
 
 @app.cell
-def _(data, pl):
+def _(copy, model_data, pl):
     def summarize_os_predictive_r2(data):
         rows = []
         for stock, stock_data in data.items():
@@ -154,7 +159,7 @@ def _(data, pl):
             [pl.col("R^2").mean().alias("Mean_R2"), pl.col("R^2").std().alias("Std_R2")]
         )
         return summary
-    os_predictive_r2_summary = summarize_os_predictive_r2(data)
+    os_predictive_r2_summary = summarize_os_predictive_r2(copy.deepcopy(model_data))
     print(
         "Out-of-sample R2 score for predictive models (self-impact and cross-impact):"
     )
@@ -164,13 +169,15 @@ def _(data, pl):
 
 
 @app.cell
-def _(data, pl, tabulate):
+def _(copy, math, model_data, pl, tabulate):
     def summarize_ci_coefficients(data):
         rows = []
         for stock, stock_data in data.items():
             for model in ["CI"]:
                 coef_samples = stock_data.get(f"{model.lower()}_coef", [])
                 for coefs in coef_samples:
+                    # Get rid of the intercept
+                    coefs.pop("intercept", None)
                     self_coef = coefs.get(stock, 0)
                     cross_coefs = [v for k, v in coefs.items() if k != stock]
 
@@ -178,10 +185,10 @@ def _(data, pl, tabulate):
                         {
                             "Stock": stock,
                             "Model": model,
-                            "Self Frequency": int(self_coef != 0),
+                            "Self Frequency": int(not math.isclose(self_coef, 0)),
                             "Self Magnitude": abs(self_coef),
                             "Cross Frequency": (
-                                sum([1 if c != 0 else 0 for c in cross_coefs])
+                                sum([int(not math.isclose(c, 0)) for c in cross_coefs])
                                 / len(cross_coefs)
                                 if cross_coefs
                                 else 0
@@ -242,7 +249,7 @@ def _(data, pl, tabulate):
 
         # Print the table
         print(tabulate(data, headers=headers, tablefmt="simple_grid"))
-    ci_coefficients_summary = summarize_ci_coefficients(data).to_dicts()
+    ci_coefficients_summary = summarize_ci_coefficients(copy.deepcopy(model_data)).to_dicts()
     format_summary_table_ci(ci_coefficients_summary)
     return (
         ci_coefficients_summary,
@@ -251,14 +258,14 @@ def _(data, pl, tabulate):
     )
 
 
-@app.cell
-def _(Path, data_path, np, pl, stats, tabulate):
+app._unparsable_cell(
+    r"""
     def generate_ofi_summary(
         df: pl.DataFrame, save_file_dir: Path | None = None
     ) -> pl.DataFrame:
-        """
+        \"\"\"
         Generate summary statistics for OFI data.
-        """
+        \"\"\"
 
         # Function to calculate kurtosis (using Fisher definition to match paper)
         def kurt(x):
@@ -267,8 +274,8 @@ def _(Path, data_path, np, pl, stats, tabulate):
             )  # Adding 3 to get regular kurtosis instead of excess kurtosis
 
         # Get all OFI level columns
-        ofi_columns = [col for col in df.columns if col.startswith("ofi_level_")]
-        ofi_columns.append("integrated_ofi")
+        ofi_columns = [col for col in df.columns if col.startswith(\"ofi_level_\")]
+        ofi_columns.append(\"integrated_ofi\")
 
         # Initialize results list
         results = []
@@ -283,16 +290,16 @@ def _(Path, data_path, np, pl, stats, tabulate):
             kurtosis = (np.mean((values - mean) ** 4)) / (std**4) if std != 0 else 0
             percentiles = np.percentile(values, [10, 25, 50, 75, 90])
             stats_dict = {
-                "variable": col,
-                "Mean": mean,
-                "Std": std,
-                "Skewness": skewness,
-                "Kurtosis": kurtosis,
-                "10%": percentiles[0],
-                "25%": percentiles[1],
-                "50%": percentiles[2],
-                "75%": percentiles[3],
-                "90%": percentiles[4],
+                \"variable\": col,
+                \"Mean\": mean,
+                \"Std\": std,
+                \"Skewness\": skewness,
+                \"Kurtosis\": kurtosis,
+                \"10%\": percentiles[0],
+                \"25%\": percentiles[1],
+                \"50%\": percentiles[2],
+                \"75%\": percentiles[3],
+                \"90%\": percentiles[4],
             }
             results.append(stats_dict)
 
@@ -301,15 +308,15 @@ def _(Path, data_path, np, pl, stats, tabulate):
 
         # Round all numeric columns to 2 decimal places
         numeric_cols = [
-            "Mean",
-            "Std",
-            "Skewness",
-            "Kurtosis",
-            "10%",
-            "25%",
-            "50%",
-            "75%",
-            "90%",
+            \"Mean\",
+            \"Std\",
+            \"Skewness\",
+            \"Kurtosis\",
+            \"10%\",
+            \"25%\",
+            \"50%\",
+            \"75%\",
+            \"90%\",
         ]
 
         for col in numeric_cols:
@@ -317,59 +324,63 @@ def _(Path, data_path, np, pl, stats, tabulate):
 
         # Optionally save to file
         if save_file_dir:
-            summary_df.write_csv(save_file_dir / "ofi_summary.csv")
+            summary_df.write_csv(save_file_dir / \"ofi_summary.csv\")
 
         return summary_df
 
     def format_summary_table(df: pl.DataFrame) -> None:
         def format_variable_name(var_name):
-            if var_name.startswith("ofi_level_"):
-                level = int(var_name.split("_")[-1])
-                return f"ofi{level},(1m)"
-            elif var_name == "integrated_ofi":
-                return "ofiᴵ,(1m)"
+            if var_name.startswith(\"ofi_level_\"):
+                level = int(var_name.split(\"_\")[-1])
+                return f\"ofi{level},(1m)\"
+            elif var_name == \"integrated_ofi\":
+                return \"ofiᴵ,(1m)\"
             return var_name
 
         df = df.with_columns(
-            pl.col("variable")
+            pl.col(\"variable\")
             .map_elements(format_variable_name, return_dtype=pl.String)
-            .alias("variable")
+            .alias(\"variable\")
         )
 
         data = df.to_dicts()
 
         headers = {
-            "variable": "Variable",
-            "Mean": "Mean",
-            "Std": "Std",
-            "Skewness": "Skewness",
-            "Kurtosis": "Kurtosis",
-            "10%": "10%",
-            "25%": "25%",
-            "50%": "50%",
-            "75%": "75%",
-            "90%": "90%",
+            \"variable\": \"Variable\",
+            \"Mean\": \"Mean\",
+            \"Std\": \"Std\",
+            \"Skewness\": \"Skewness\",
+            \"Kurtosis\": \"Kurtosis\",
+            \"10%\": \"10%\",
+            \"25%\": \"25%\",
+            \"50%\": \"50%\",
+            \"75%\": \"75%\",
+            \"90%\": \"90%\",
         }
 
-        print("\nTable 1. Summary statistics of OFIs and returns.")
-        print(tabulate(data, headers=headers, tablefmt="rst"))
+        print(\"\nTable 1. Summary statistics of OFIs and returns.\")
+        print(tabulate(data, headers=headers, tablefmt=\"rst\"))
         print(
-            "\nNote: These statistics are computed at the minute level across each stock and the full sample period."
+            \"\nNote: These statistics are computed at the minute level across each stock and the full sample period.\"
         )
 
-    ofi_data = pl.read_parquet(data_path / "ofis_results.parquet")
-    ofi_summary = generate_ofi_summary(ofi_data, data_path)
+    ofi_data = pl.read_parquet(data_path / \"ofis_results.parquet\")
+    results_dir = Path(__file__).parents[1] / \"results\")
+    ofi_summary = generate_ofi_summary(ofi_data, results_dir)
     format_summary_table(ofi_summary)
-    return format_summary_table, generate_ofi_summary, ofi_data, ofi_summary
+    """,
+    name="_"
+)
 
 
 @app.cell
-def _():
-    return
+def _(model_data, nx, plt):
+    def normalize_coefficients(coefficients):
+        max_value = max(abs(v) for coefs in coefficients.values() for v in coefs.values())
+        if max_value == 0:
+            return coefficients  # Avoid division by zero
+        return {stock: {k: v / max_value for k, v in coefs.items()} for stock, coefs in coefficients.items()}
 
-
-@app.cell
-def _(data, nx, plt):
     def average_ci_coefficients(data):
         averaged_coefs = {}
         for stock, stock_data in data.items():
@@ -378,7 +389,6 @@ def _(data, nx, plt):
                 # Initialize cumulative coefficients
                 cumulative_coefs = {}
                 total_samples = len(coef_samples)
-
                 for coefs in coef_samples:
                     for k, v in coefs.items():
                         cumulative_coefs[k] = cumulative_coefs.get(k, 0) + v
@@ -446,6 +456,8 @@ def _(data, nx, plt):
             if model == "CI"
             else average_fci_coefficients(data)
         )
+        averaged_data = normalize_coefficients(averaged_data)
+        
         for stock, coefs in averaged_data.items():
             abs_values = sorted(abs(v) for v in coefs.values())
             cutoff = abs_values[int(len(abs_values) * (1 - threshold))] if abs_values else 0
@@ -462,6 +474,7 @@ def _(data, nx, plt):
         for stock, coefs in filtered_data.items():
             for target, weight in coefs.items():
                 G.add_edge(stock, target, weight=abs(weight))
+                print(abs(weight))
 
         edges = sorted(G.edges(data=True), key=lambda x: x[2]["weight"], reverse=True)[
             :top_k
@@ -489,9 +502,9 @@ def _(data, nx, plt):
         plt.show()
         
     # Generate and plot CI network
-    threshold = 95  # Percentile
+    threshold = 100 # Percentile
     top_k = 50  # Top edges by weight
-    G_ci = generate_network(data, threshold, top_k, model="CI")
+    G_ci = generate_network(model_data, threshold, top_k, model="CI")
     plot_network(G_ci, title="Averaged Cross-Impact Network (CI)")
     return (
         G_ci,
@@ -499,6 +512,7 @@ def _(data, nx, plt):
         average_fci_coefficients,
         filter_coefficients,
         generate_network,
+        normalize_coefficients,
         plot_network,
         threshold,
         top_k,
@@ -506,20 +520,52 @@ def _(data, nx, plt):
 
 
 @app.cell
-def _(data, generate_network, plot_network, threshold, top_k):
+def _(average_ci_coefficients, copy, model_data, pl, sns):
+    averaged_ci_coefs = average_ci_coefficients(copy.deepcopy(model_data))
+    averaged_ci_coefs_df = pl.DataFrame(averaged_ci_coefs)
+
+    def convert(data):
+        # Convert nested dict to list of records
+        records = []
+        for outer_key, inner_dict in data.items():
+            for inner_key, value in inner_dict.items():
+                records.append({
+                    "symbol1": outer_key,
+                    "symbol2": inner_key,
+                    "value": value
+                })
+        
+        # Create polars dataframe
+        df = pl.DataFrame(records)
+        # Pivot the data to create a matrix format
+        matrix_df = df.pivot(
+            values="value",
+            index="symbol1",
+            columns="symbol2"
+        ).drop("symbol1", "intercept")
+        return matrix_df
+
+    matrix_df = convert(averaged_ci_coefs)
+    sns.heatmap(matrix_df, annot=True, cmap="coolwarm")
+    return averaged_ci_coefs, averaged_ci_coefs_df, convert, matrix_df
+
+
+@app.cell
+def _(copy, generate_network, model_data, plot_network, threshold, top_k):
     # Generate and plot FCI network
-    G_fci = generate_network(data, threshold, top_k, model="FCI")
+    G_fci = generate_network(copy.deepcopy(model_data), threshold, top_k, model="FCI")
     plot_network(G_fci, title="Averaged Forward-Looking Cross-Impact Network (FCI)")
     return (G_fci,)
 
 
 @app.cell
-def _(data, np, plt):
+def _(copy, model_data, np, plt):
     def plot_r2_scores(data):
         stocks = list(data.keys())
         in_sample = [np.mean(data[stock]["is_ci_r2"]) for stock in stocks]
         out_sample = [np.mean(data[stock]["os_ci_r2"]) for stock in stocks]
-
+        for stock, is_r2, os_r2 in zip(stocks, in_sample, out_sample):
+            print(f"{stock}: In-Sample R² = {is_r2:.4f}, Out-of-Sample R² = {os_r2:.4f}")
         x = np.arange(len(stocks))
         width = 0.35
 
@@ -532,12 +578,12 @@ def _(data, np, plt):
         plt.legend()
         plt.tight_layout()
         plt.show()
-    plot_r2_scores(data)
+    plot_r2_scores(copy.deepcopy(model_data))
     return (plot_r2_scores,)
 
 
 @app.cell
-def _(data, pl, plt, sns):
+def _(copy, model_data, pl, plt, sns):
     # Plot Lag Heatmap using Polars
     def plot_lag_heatmap(data):
         lag_data = []
@@ -571,22 +617,25 @@ def _(data, pl, plt, sns):
         plt.xlabel("Lag")
         plt.tight_layout()
         plt.show()
-    plot_lag_heatmap(data)
+    plot_lag_heatmap(copy.deepcopy(model_data))
     return (plot_lag_heatmap,)
 
 
 @app.cell
 def _(ofi_data, pl, plt, sns):
     def plot_ofi_histograms(ofi_df: pl.DataFrame) -> None:
+        ofi_df.group_by("symbol").agg(pl.all().mean())
         # Get all OFI level columns
         ofi_columns = [col for col in ofi_df.columns if col.startswith("ofi_level_")]
         ofi_columns.append("integrated_ofi")
 
         for col in ofi_columns:
+            data = ofi_df[col].to_numpy()
+            print(data.min(), data.max())
             plt.figure(figsize=(10, 6))
-            sns.histplot(ofi_df[col].to_numpy(), bins=1000, kde=True)
+            sns.histplot(data, bins=1000, kde=True)
             plt.title(f"Histogram of {col}")
-            plt.xlabel("OFI (bp)")
+            plt.xlabel("OFI")
             plt.ylabel("Frequency")
             plt.tight_layout()
             plt.show()
@@ -601,7 +650,8 @@ def _(ofi_data, pl, plt, sns):
         # Average over all stocks
         ofi_df = (
             ofi_df.group_by("symbol").agg(pl.all().mean()).drop(["symbol", "timestamp"])
-        )
+        ).drop("integrated_ofi")
+        print(ofi_df)
         plt.figure(figsize=(10, 8))
         sns.heatmap(ofi_df.corr(), annot=True, cmap="coolwarm")
         plt.title("Correlation Heatmap of OFI Levels (Average Across Stocks)")

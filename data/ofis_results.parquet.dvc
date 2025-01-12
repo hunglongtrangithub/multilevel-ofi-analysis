@@ -1,5 +1,0 @@
-outs:
-- md5: eccd31f1de3b7a1bc81ef53b6f324a81
-  size: 1303777
-  hash: md5
-  path: ofis_results.parquet

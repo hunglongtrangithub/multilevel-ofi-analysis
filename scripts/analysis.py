@@ -287,8 +287,11 @@ def collect_ofis(input_dir: str, symbols: list, output_dir: str):
 
 if __name__ == "__main__":
     data_dir = Path(__file__).parents[1] / "data"
+    data_dir.mkdir(exist_ok=True)
+    result_dir = Path(__file__).parents[1] / "results"
+    result_dir.mkdir(exist_ok=True)
     # logger.add("analysis.log", rotation="10 MB")
     collect_coefficients_and_r2_scores(
-        data_dir / "XNAS-20250105-S6R97734QU", SYMBOLS, data_dir
+        data_dir / "XNAS-20250105-S6R97734QU", SYMBOLS, result_dir
     )
-    # collect_ofis(data_dir / "XNAS-20250105-S6R97734QU", SYMBOLS, data_dir)
+    collect_ofis(data_dir / "XNAS-20250105-S6R97734QU", SYMBOLS, result_dir)
