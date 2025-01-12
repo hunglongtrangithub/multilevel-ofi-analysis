@@ -16,15 +16,22 @@ This project investigates the cross-impact relationships of Order Flow Imbalance
 1. Clone the repository:
 
    ```bash
-   git clone <repository_url>
-   cd <repository_directory>
+   git clone https://github.com/hunglongtrangithub/blockhouse-work-trial-task
+   cd blockhouse-work-trial-task
    ```
 
    This project uses uv as a package manager. If uv is not installed, follow the instructions in this [GitHub repository](https://github.com/astral-sh/uv).
 
-2. Install required Python packages:
+2. Install required Python packages with uv:
+
    ```bash
    uv sync
+   ```
+
+   Or install the packages with pip:
+
+   ```bash
+    pip install -r requirements.txt
    ```
 
 ## Repository Contents:
