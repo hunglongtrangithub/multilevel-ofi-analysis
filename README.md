@@ -16,8 +16,8 @@ This project investigates the cross-impact relationships of Order Flow Imbalance
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/hunglongtrangithub/blockhouse-work-trial-task
-   cd blockhouse-work-trial-task
+   git clone https://github.com/hunglongtrangithub/multilevel-ofi-analysis
+   cd multilevel-ofi-analysis
    ```
 
    This project uses uv as a package manager. If uv is not installed, follow the instructions in this [GitHub repository](https://github.com/astral-sh/uv).
